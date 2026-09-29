@@ -16,17 +16,11 @@ jobs:
       uses: actions/checkout@v7.0.1
       with:
         ref: main
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-        cache: 'pip' # Automatically caches installed pip packages
     - name: "Get obb-file"
       env:
         BINARY_ID: ${{ inputs.obb_binary_id }}
         TOKEN: ${{ secrets.OCULUS_TOKEN }}
       run: |
-        python -m pip install --upgrade pip
         curl -L -o beatsaber-obb.zip "https://securecdn.oculus.com/binaries/download/?id=$BINARY_ID&access_token=$TOKEN"
         unzip beatsaber-obb.zip
         pip install UnityPy
