@@ -1,0 +1,61 @@
+on:
+  workflow_dispatch:
+    inputs:
+      obb_binary_id:
+        required: true
+        type: string
+
+permissions:
+  contents: write 
+
+jobs:
+  extract-images:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v7.0.1
+      with:
+        ref: main
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip' # Automatically caches installed pip packages
+    - name: "Get obb-file"
+      env:
+        BINARY_ID: ${{ inputs.obb_binary_id }}
+        TOKEN: ${{ secrets.OCULUS_TOKEN }}
+      run: |
+        python -m pip install --upgrade pip
+        curl -L -o beatsaber-obb.zip "https://securecdn.oculus.com/binaries/download/?id=$BINARY_ID&access_token=$TOKEN"
+        unzip beatsaber-obb.zip
+        pip install UnityPy
+    - name: "Extract cover images"
+      shell: python
+      run: |
+        import UnityPy
+        import os
+
+        assets = UnityPy.load("assets/aa/Android")
+        for obj in assets.objects:
+            n = obj.peek_name()
+            if n and "BeatmapLevel" in n and obj.type.name == "MonoBehaviour":
+                data = obj.parse_as_object()
+                if not hasattr(data,"_levelID"):continue
+                c = data._coverImage
+                dest = os.path.join("cover", data._levelID)
+                os.makedirs(os.path.dirname(dest), exist_ok = True)
+                c.deref_parse_as_object().image.save(dest + ".png")
+    - name: Commit and Push Changes
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        
+        git add cover
+        
+        if git diff --staged --quiet; then
+          echo "No changes to commit."
+        else
+          git commit -m "chore: add covers"
+          git push origin main
+        fi
